@@ -18,6 +18,9 @@ class CartService {
       cart = { userId, items: [] };
       this.store.set(userId, cart);
     }
+    if (!Array.isArray(cart.items)) {
+      cart.items = [];
+    }
     const existing = cart.items.find((i) => i.id === item.id);
     if (existing) {
       existing.quantity += item.quantity;
@@ -30,7 +33,7 @@ class CartService {
   removeItem(userId, itemId) {
     const cart = this.store.get(userId);
     if (!cart) return;
-    cart.items = cart.items.filter((i) => i.id !== itemId);
+    cart.items = (cart.items ?? []).filter((i) => i.id !== itemId);
   }
 
   clearCart(userId) {
@@ -43,6 +46,10 @@ class CartService {
     const items = cart?.items ?? [];
     const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
     return { userId, items, itemCount: items.length, total };
+  }
+
+  getCartSummary(userId) {
+    return this.refreshCart(userId);
   }
 }
 
