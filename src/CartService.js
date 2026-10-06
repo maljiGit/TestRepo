@@ -15,11 +15,19 @@ class CartService {
       throw new Error('Invalid item');
     }
     let cart = this.store.get(userId);
+    const items = cart?.items ?? [];
+    const existing = items.find((i) => i.id === item.id);
+    const nextItems = existing
+      ? items.map((i) => (i === existing ? { ...i, quantity: i.quantity + item.quantity } : i))
+      : [...items, { ...item }];
+    const nextTotal = nextItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    if (!Number.isFinite(nextTotal)) {
+      throw new Error('Invalid item');
+    }
     if (!cart) {
       cart = { userId, items: [] };
       this.store.set(userId, cart);
     }
-    const existing = cart.items.find((i) => i.id === item.id);
     if (existing) {
       existing.quantity += item.quantity;
     } else {

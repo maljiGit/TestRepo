@@ -80,3 +80,22 @@ test('addItem leaves an existing cart unchanged after rejecting an invalid item'
   assert.throws(() => svc.addItem('u1', { id: 'pear', price: Infinity, quantity: 1 }), /Invalid item/);
   assert.deepEqual(svc.refreshCart('u1'), { userId: 'u1', items: [apple], itemCount: 1, total: 6 });
 });
+
+test('addItem rejects finite inputs that would overflow a cart quantity or total', () => {
+  const svc = new CartService();
+  svc.addItem('u1', { id: 'large', price: 1, quantity: Number.MAX_VALUE });
+
+  assert.throws(() => svc.addItem('u1', { id: 'large', price: 1, quantity: Number.MAX_VALUE }), /Invalid item/);
+  assert.deepEqual(svc.refreshCart('u1'), {
+    userId: 'u1', items: [{ id: 'large', price: 1, quantity: Number.MAX_VALUE }], itemCount: 1, total: Number.MAX_VALUE,
+  });
+
+  assert.throws(() => svc.addItem('u2', { id: 'expensive', price: Number.MAX_VALUE, quantity: 2 }), /Invalid item/);
+  assert.equal(svc.getCart('u2'), undefined);
+
+  svc.addItem('u3', { id: 'first', price: Number.MAX_VALUE, quantity: 1 });
+  assert.throws(() => svc.addItem('u3', { id: 'second', price: Number.MAX_VALUE, quantity: 1 }), /Invalid item/);
+  assert.deepEqual(svc.refreshCart('u3'), {
+    userId: 'u3', items: [{ id: 'first', price: Number.MAX_VALUE, quantity: 1 }], itemCount: 1, total: Number.MAX_VALUE,
+  });
+});
