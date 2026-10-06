@@ -10,7 +10,8 @@ class CartService {
   }
 
   addItem(userId, item) {
-    if (!item || !item.id || !(item.price >= 0) || !(item.quantity > 0)) {
+    if (!item || !item.id || !Number.isFinite(item.price) || item.price < 0
+      || !Number.isFinite(item.quantity) || item.quantity <= 0) {
       throw new Error('Invalid item');
     }
     let cart = this.store.get(userId);
