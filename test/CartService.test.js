@@ -42,3 +42,60 @@ test('removing the last item leaves an empty cart that refreshes cleanly', () =>
   svc.removeItem('u1', 'apple');
   assert.equal(svc.refreshCart('u1').total, 0);
 });
+
+test('addItem accepts a zero price with a positive numeric quantity', () => {
+  const svc = new CartService();
+  svc.addItem('u1', { id: 'free-item', price: 0, quantity: 1 });
+
+  assert.deepEqual(svc.refreshCart('u1'), {
+    userId: 'u1', items: [{ id: 'free-item', price: 0, quantity: 1 }], itemCount: 1, total: 0,
+  });
+});
+
+test('addItem rejects non-finite and coerced numeric values without creating a cart', () => {
+  const svc = new CartService();
+  const invalidItems = [
+    { id: 'nan-price', price: NaN, quantity: 1 },
+    { id: 'infinite-price', price: Infinity, quantity: 1 },
+    { id: 'negative-infinite-price', price: -Infinity, quantity: 1 },
+    { id: 'string-price', price: '2', quantity: 1 },
+    { id: 'nan-quantity', price: 2, quantity: NaN },
+    { id: 'infinite-quantity', price: 2, quantity: Infinity },
+    { id: 'negative-infinite-quantity', price: 2, quantity: -Infinity },
+    { id: 'zero-quantity', price: 2, quantity: 0 },
+    { id: 'string-quantity', price: 2, quantity: '1' },
+  ];
+
+  for (const item of invalidItems) {
+    assert.throws(() => svc.addItem('u1', item), /Invalid item/);
+  }
+
+  assert.equal(svc.getCart('u1'), undefined);
+});
+
+test('addItem leaves an existing cart unchanged after rejecting an invalid item', () => {
+  const svc = new CartService();
+  svc.addItem('u1', apple);
+
+  assert.throws(() => svc.addItem('u1', { id: 'pear', price: Infinity, quantity: 1 }), /Invalid item/);
+  assert.deepEqual(svc.refreshCart('u1'), { userId: 'u1', items: [apple], itemCount: 1, total: 6 });
+});
+
+test('addItem rejects finite inputs that would overflow a cart quantity or total', () => {
+  const svc = new CartService();
+  svc.addItem('u1', { id: 'large', price: 1, quantity: Number.MAX_VALUE });
+
+  assert.throws(() => svc.addItem('u1', { id: 'large', price: 1, quantity: Number.MAX_VALUE }), /Invalid item/);
+  assert.deepEqual(svc.refreshCart('u1'), {
+    userId: 'u1', items: [{ id: 'large', price: 1, quantity: Number.MAX_VALUE }], itemCount: 1, total: Number.MAX_VALUE,
+  });
+
+  assert.throws(() => svc.addItem('u2', { id: 'expensive', price: Number.MAX_VALUE, quantity: 2 }), /Invalid item/);
+  assert.equal(svc.getCart('u2'), undefined);
+
+  svc.addItem('u3', { id: 'first', price: Number.MAX_VALUE, quantity: 1 });
+  assert.throws(() => svc.addItem('u3', { id: 'second', price: Number.MAX_VALUE, quantity: 1 }), /Invalid item/);
+  assert.deepEqual(svc.refreshCart('u3'), {
+    userId: 'u3', items: [{ id: 'first', price: Number.MAX_VALUE, quantity: 1 }], itemCount: 1, total: Number.MAX_VALUE,
+  });
+});
